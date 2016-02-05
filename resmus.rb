@@ -48,7 +48,9 @@ def download_and_play_url(bot, channel_id, url)
       if File.exists?(filename)
         bot.send_message(channel_id, "And we're playing!")
         @downloading = false
+        bot.voice.stop_playing rescue nil
         bot.voice.play_file(filename)
+        bot.voice.continue rescue nil
         next
       else
         bot.send_message(channel_id, "One sec, gotta download this")
@@ -61,7 +63,9 @@ def download_and_play_url(bot, channel_id, url)
       if File.exists?(filename)
         bot.send_message(channel_id, "Now we're playing!")
         @downloading = false
+        bot.voice.stop_playing rescue nil
         bot.voice.play_file(filename)
+        bot.voice.continue rescue nil
       else
         bot.send_message(channel_id, "Actually I fucked it up. Sorry.")
       end
@@ -81,7 +85,9 @@ def download_and_play_title(bot, channel_id, title)
       if File.exists?(filename)
         bot.send_message(channel_id, "And we're playing!")
         @downloading = false
+        bot.voice.stop_playing rescue nil
         bot.voice.play_file(filename)
+        bot.voice.continue rescue nil
         next
       else
         bot.send_message(channel_id, "I'll see what I can find")
@@ -94,7 +100,9 @@ def download_and_play_title(bot, channel_id, title)
       if File.exists?(filename)
         bot.send_message(channel_id, "Hopefully this is what you were after!")
         @downloading = false
+        bot.voice.stop_playing rescue nil
         bot.voice.play_file(filename)
+        bot.voice.continue rescue nil
       else
         bot.send_message(channel_id, "Couldn't find anything")
       end
