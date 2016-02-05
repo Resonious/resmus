@@ -28,67 +28,89 @@ def recall(user, key)
   @memory[user.id].try(:[], key)
 end
 
+@downloading = false
 def download_and_play_url(bot, channel_id, url)
   proc do
-    unless /youtu\.?be/ =~ url
-      bot.send_message(channel_id, "Hey wait, that's not a youtube URL..")
-      next
-    end
+    begin
+      @downloading = true
+      unless /youtu\.?be/ =~ url
+        bot.send_message(channel_id, "Hey wait, that's not a youtube URL..")
+        next
+      end
 
-    unless /\/watch\?v=(?<filename>[\w-]+)/ =~ url
-      bot.send_message(channel_id, "Ah, sorry, couldn't parse the URL")
-      next
-    end
+      unless /\/watch\?v=(?<filename>[\w-]+)/ =~ url
+        bot.send_message(channel_id, "Ah, sorry, couldn't parse the URL")
+        next
+      end
 
-    filename += ".ogg"
-    filename = "download/#{filename}"
-    if File.exists?(filename)
-      bot.send_message(channel_id, "And we're playing!")
-      bot.voice.play_file(filename)
-      next
-    else
-      bot.send_message(channel_id, "One sec, gotta download this")
-      command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --extract-audio --audio-format vorbis #{url})
-      puts command
-      system(command)
-      bot.send_message(channel_id, "Done!")
-    end
+      filename += ".ogg"
+      filename = "download/#{filename}"
+      if File.exists?(filename)
+        bot.send_message(channel_id, "And we're playing!")
+        @downloading = false
+        bot.voice.play_file(filename)
+        next
+      else
+        bot.send_message(channel_id, "One sec, gotta download this")
+        command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --extract-audio --audio-format vorbis #{url})
+        puts command
+        system(command)
+        bot.send_message(channel_id, "Done!")
+      end
 
-    if File.exists?(filename)
-      bot.send_message(channel_id, "Now we're playing!")
-      bot.voice.play_file(filename)
-    else
-      bot.send_message(channel_id, "Actually I fucked it up. Sorry.")
+      if File.exists?(filename)
+        bot.send_message(channel_id, "Now we're playing!")
+        @downloading = false
+        bot.voice.play_file(filename)
+      else
+        bot.send_message(channel_id, "Actually I fucked it up. Sorry.")
+      end
+
+    ensure
+      @downloading = false
     end
   end
 end
 
 def download_and_play_title(bot, channel_id, title)
   proc do
-    filename = title.gsub(/\s+/, '-') + ".ogg"
-    filename = "download/#{filename}"
-    if File.exists?(filename)
-      bot.send_message(channel_id, "And we're playing!")
-      bot.voice.play_file(filename)
-      next
-    else
-      bot.send_message(channel_id, "I'll see what I can find")
-      command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --playlist-items 1 --extract-audio --audio-format vorbis "https://youtube.com/results?search_query=#{CGI.escape title}")
-      puts command
-      system(command)
-      bot.send_message(channel_id, "Okay..")
-    end
+    begin
+      @downloading = true
+      filename = title.gsub(/\s+/, '-') + ".ogg"
+      filename = "download/#{filename}"
+      if File.exists?(filename)
+        bot.send_message(channel_id, "And we're playing!")
+        @downloading = false
+        bot.voice.play_file(filename)
+        next
+      else
+        bot.send_message(channel_id, "I'll see what I can find")
+        command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --playlist-items 1 --extract-audio --audio-format vorbis "https://youtube.com/results?search_query=#{CGI.escape title}")
+        puts command
+        system(command)
+        bot.send_message(channel_id, "Okay..")
+      end
 
-    if File.exists?(filename)
-      bot.send_message(channel_id, "Hopefully this is what you were after!")
-      bot.voice.play_file(filename)
-    else
-      bot.send_message(channel_id, "Couldn't find anything")
+      if File.exists?(filename)
+        bot.send_message(channel_id, "Hopefully this is what you were after!")
+        @downloading = false
+        bot.voice.play_file(filename)
+      else
+        bot.send_message(channel_id, "Couldn't find anything")
+      end
+
+    ensure
+      @downloading = false
     end
   end
 end
 
-handle_event = lambda do |event, user|
+handle_event = lambda do |event, user, is_private|
+  if @downloading
+    event.respond downloading_something
+    next
+  end
+
   case event
   when come_here?(@conversation[user.id])
     if voice_channel = user.voice_channel
@@ -159,12 +181,26 @@ handle_event = lambda do |event, user|
       else
         event.respond "ok"
       end
+
+      if is_private && @last_channel
+        bot.send_message(@last_channel.id, "#{event.author.mention} just told me to #{event.message.text}")
+      end
     end
 
   when pause?
     if bot.voice
       bot.voice.pause
       event.respond "ok"
+    end
+
+    if is_private && @last_channel
+      bot.send_message(@last_channel.id, "#{event.author.mention} just told me to #{event.message.text}")
+    end
+
+  when continue?
+    if bot.voice
+      bot.voice.continue
+      event.respond "resuming"
     end
 
   when help?
@@ -190,12 +226,20 @@ bot.mention do |event|
   user = bot.user(event.author.id)
 
   # puts "Conversation with #{user.name} is at #{@conversation[user.id].inspect}"
-  handle_event.call(event, user)
+  handle_event.call(event, user, false)
 end
 
 bot.message(private: true) do |event|
   user = bot.user(event.author.id)
-  handle_event.call(event, user)
+  handle_event.call(event, user, true)
+end
+
+bot.message(private: false) do |event|
+  if who?(event)
+    event.respond im_a_bot(event.author, event.message.text)
+  elsif @conversation[event.author.id] && event.message.mentions.blank?
+    handle_event.call(event, bot.user(event.author.id), false)
+  end
 end
 
 bot.ready { puts "READY" }

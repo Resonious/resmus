@@ -52,6 +52,12 @@ def pause?
   end
 end
 
+def continue?
+  proc do |event|
+    event.message.text =~ /continue|play|go|start|resume/
+  end
+end
+
 def play_url?
   proc do |event|
     text = event.message.text
@@ -81,7 +87,7 @@ end
 def play?
   proc do |event|
     text = event.message.text
-    text.downcase =~ /play/
+    text.downcase =~ /play.+/
   end
 end
 
@@ -89,4 +95,37 @@ def help?
   proc do |event|
     event.message.text =~ /help|wtf/
   end
+end
+
+def who?(event)
+  text = event.message.text
+  (text =~ /who(se)?\s+resmus/) ||
+  (text =~ /who.+is.+resmus/)   ||
+  (text =~ /who.+resmus/)       ||
+  (text =~ /what.+resmus/)      ||
+  (text =~ /resmus\?/)
+end
+
+def im_a_bot(user, message)
+  [
+    "I'm a bot", "Bot", "A bot", "Who knows dude", "Who are YOU", "I'm a bot lmao",
+    "noob", "Who is #{user.name}?", "I am a bot",
+    "A bot capable of playing music into the voice chat", "I am useless", "Good question",
+    "Who you", "Just a bot", "Robo", "I can play music into the voice chat",
+    "Private chat me a youtube link, nerd", "I'm you", message, "Bot!!!", "A bot!!!",
+    "A bot capable of more than you could ever imagine"
+  ]
+    .sample
+end
+
+def downloading_something
+  [
+    "Still downloading the last thing, hand on.",
+    "One sec, let me finish what I started", "I'm still downloading the other thing",
+    "Let me finish this download", "Still downloading", "Hang on", "Wait a sec",
+    "One thing at a time hold on", "One thing at a time", "Wait for me to finish this",
+    "Gotta finish this download", "Gotta finish this - one sec", "Hang on dude",
+    "Wait", "Still downloading other thing", "One sec", "One sec my man"
+  ]
+    .sample
 end
