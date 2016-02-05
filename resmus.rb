@@ -49,8 +49,8 @@ def download_and_play_url(bot, channel_id, url)
         bot.send_message(channel_id, "And we're playing!")
         @downloading = false
         bot.voice.stop_playing rescue nil
-        bot.voice.play_file(filename)
         bot.voice.continue rescue nil
+        bot.voice.play_file(filename)
         next
       else
         bot.send_message(channel_id, "One sec, gotta download this")
@@ -64,8 +64,8 @@ def download_and_play_url(bot, channel_id, url)
         bot.send_message(channel_id, "Now we're playing!")
         @downloading = false
         bot.voice.stop_playing rescue nil
-        bot.voice.play_file(filename)
         bot.voice.continue rescue nil
+        bot.voice.play_file(filename)
       else
         bot.send_message(channel_id, "Actually I fucked it up. Sorry.")
       end
@@ -86,8 +86,8 @@ def download_and_play_title(bot, channel_id, title)
         bot.send_message(channel_id, "And we're playing!")
         @downloading = false
         bot.voice.stop_playing rescue nil
-        bot.voice.play_file(filename)
         bot.voice.continue rescue nil
+        bot.voice.play_file(filename)
         next
       else
         bot.send_message(channel_id, "I'll see what I can find")
@@ -101,8 +101,8 @@ def download_and_play_title(bot, channel_id, title)
         bot.send_message(channel_id, "Hopefully this is what you were after!")
         @downloading = false
         bot.voice.stop_playing rescue nil
-        bot.voice.play_file(filename)
         bot.voice.continue rescue nil
+        bot.voice.play_file(filename)
       else
         bot.send_message(channel_id, "Couldn't find anything")
       end
@@ -125,11 +125,11 @@ handle_event = lambda do |event, user, is_private|
       begin
         bot.voice_connect(voice_channel)
 
+        event.respond im_here
+
         if @conversation[user.id] == :asked_if_i_should_join_voice
           @conversation[user.id] = nil
 
-
-          event.respond im_here
           if url = recall(user, :play_url)
             Thread.new(&download_and_play_url(bot, event.channel.id, url))
           elsif title = recall(user, :play_title)
