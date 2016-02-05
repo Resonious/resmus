@@ -39,11 +39,11 @@ def download_and_play_url(bot, channel_id, url)
       end
 
       unless /\/watch\?v=(?<filename>[\w-]+)/ =~ url
-        bot.send_message(channel_id, "Ah, sorry, couldn't parse the URL")
+        bot.send_message(channel_id, "You gotta send me a direct video link (with ?watch=...)")
         next
       end
 
-      filename += ".ogg"
+      filename += ".mp3"
       filename = "download/#{filename}"
       if File.exists?(filename)
         bot.send_message(channel_id, "And we're playing!")
@@ -54,7 +54,7 @@ def download_and_play_url(bot, channel_id, url)
         next
       else
         bot.send_message(channel_id, "One sec, gotta download this")
-        command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --extract-audio --audio-format vorbis #{url})
+        command = %(youtube-dl -o "#{filename.gsub(/\.mp3$/, '.%(ext)s')}" --extract-audio --audio-format mp3 #{url})
         puts command
         system(command)
         bot.send_message(channel_id, "Done!")
@@ -80,7 +80,7 @@ def download_and_play_title(bot, channel_id, title)
   proc do
     begin
       @downloading = true
-      filename = title.gsub(/\s+/, '-') + ".ogg"
+      filename = title.gsub(/\s+/, '-') + ".mp3"
       filename = "download/#{filename}"
       if File.exists?(filename)
         bot.send_message(channel_id, "And we're playing!")
@@ -91,7 +91,7 @@ def download_and_play_title(bot, channel_id, title)
         next
       else
         bot.send_message(channel_id, "I'll see what I can find")
-        command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --playlist-items 1 --extract-audio --audio-format vorbis "https://youtube.com/results?search_query=#{CGI.escape title}")
+        command = %(youtube-dl -o "#{filename.gsub(/\.mp3$/, '.%(ext)s')}" --playlist-items 1 --extract-audio --audio-format mp3 "https://youtube.com/results?search_query=#{CGI.escape title}")
         puts command
         system(command)
         bot.send_message(channel_id, "Okay..")
