@@ -6,7 +6,7 @@ def come_here?(conversation)
     (text.downcase =~ /get.*here/)       ||
     (
       conversation == :asked_if_i_should_join_voice &&
-      text.downcase =~ /yes|yeah|sure|alright|okay|yes|do\s+it|pl[sz]/
+      text.downcase =~ /yes|yeah|sure|alright|okay|yes|do\s+it|pl[sz]|ye|ys|yeh|yah|ya/
     )
   end
 end
@@ -39,6 +39,19 @@ def cant_do_voice
     .sample
 end
 
+def stop?
+  proc do |event|
+    text = event.message.text
+    text =~ /stop|shut.+up|stfu|gtfo|die/
+  end
+end
+
+def pause?
+  proc do |event|
+    event.message.text =~ /pause|wait|time\s+out/
+  end
+end
+
 def play_url?
   proc do |event|
     text = event.message.text
@@ -63,4 +76,17 @@ def missed_play(user)
     "#{user.mention} couldn't read your url for some reason"
   ]
     .sample
+end
+
+def play?
+  proc do |event|
+    text = event.message.text
+    text.downcase =~ /play/
+  end
+end
+
+def help?
+  proc do |event|
+    event.message.text =~ /help|wtf/
+  end
 end

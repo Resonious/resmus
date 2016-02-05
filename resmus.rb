@@ -1,3 +1,4 @@
+require 'cgi'
 require 'active_support'
 require 'active_support/core_ext'
 require 'discordrb'
@@ -46,8 +47,8 @@ def download_and_play_url(bot, channel_id, url)
       bot.voice.play_file(filename)
       next
     else
-      bot.send_message(channel_id, "One set, gotta download this")
-      command = %(youtube-dl -o "#{filename.gsub(/\.mp3$/, '.%(ext)s')}" --extract-audio #{url})
+      bot.send_message(channel_id, "One sec, gotta download this")
+      command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --extract-audio --audio-format vorbis #{url})
       puts command
       system(command)
       bot.send_message(channel_id, "Done!")
@@ -62,17 +63,32 @@ def download_and_play_url(bot, channel_id, url)
   end
 end
 
-bot.message do |event|
-  next unless event.message.mentions.blank?
+def download_and_play_title(bot, channel_id, title)
+  proc do
+    filename = title.gsub(/\s+/, '-') + ".ogg"
+    filename = "download/#{filename}"
+    if File.exists?(filename)
+      bot.send_message(channel_id, "And we're playing!")
+      bot.voice.play_file(filename)
+      next
+    else
+      bot.send_message(channel_id, "I'll see what I can find")
+      command = %(youtube-dl -o "#{filename.gsub(/\.ogg$/, '.%(ext)s')}" --playlist-items 1 --extract-audio --audio-format vorbis "https://youtube.com/results?search_query=#{CGI.escape title}")
+      puts command
+      system(command)
+      bot.send_message(channel_id, "Okay..")
+    end
+
+    if File.exists?(filename)
+      bot.send_message(channel_id, "Hopefully this is what you were after!")
+      bot.voice.play_file(filename)
+    else
+      bot.send_message(channel_id, "Couldn't find anything")
+    end
+  end
 end
 
-@conversation = {}
-@memory = {}
-bot.mention do |event|
-  @last_channel = event.channel
-  user = bot.user(event.author.id)
-
-  puts "Conversation's at #{@conversation[user.id].inspect}"
+handle_event = lambda do |event, user|
   case event
   when come_here?(@conversation[user.id])
     if voice_channel = user.voice_channel
@@ -81,7 +97,14 @@ bot.mention do |event|
 
         if @conversation[user.id] == :asked_if_i_should_join_voice
           @conversation[user.id] = nil
-          Thread.new(&download_and_play_url(bot, event.channel.id, recall(user, :play_url)))
+
+
+          event.respond im_here
+          if url = recall(user, :play_url)
+            Thread.new(&download_and_play_url(bot, event.channel.id, url))
+          elsif title = recall(user, :play_title)
+            Thread.new(&download_and_play_title(bot, event.channel.id, title))
+          end
         end
       rescue StandardError => e
         puts "==== Failed to do voice! #{e.class}: #{e.message} ===="
@@ -89,9 +112,9 @@ bot.mention do |event|
         puts "==========================="
       end
 
-      event.respond im_here
-
       unless bot.voice
+        event.respond im_here
+
         if @cant_do_voice
           event.respond cant_do_voice
         else
@@ -117,9 +140,62 @@ bot.mention do |event|
       event.respond missed_play(user)
     end
 
+  when play?
+    /^.*(?<play>play)\s+(?<title>.+)$/ =~ event.message.text
+    remember(user, :play_title, title)
+
+    if bot.voice.nil? || bot.instance_variable_get(:@voice_channel).id != user.voice_channel.try(:id)
+      event.respond im_not_in_a_voice_channel(user)
+      @conversation[user.id] = :asked_if_i_should_join_voice
+    else
+      Thread.new(&download_and_play_title(bot, event.channel.id, title))
+    end
+
+  when stop?
+    if bot.voice
+      bot.voice.stop_playing
+      if event.message.text =~ /stfu|shut/
+        event.respond "rude"
+      else
+        event.respond "ok"
+      end
+    end
+
+  when pause?
+    if bot.voice
+      bot.voice.pause
+      event.respond "ok"
+    end
+
+  when help?
+    if @conversation[user.id] == :just_helped
+      event.respond "What more do you want to know, #{user.mention}?!"
+    else
+      event.respond "@Mention me with 'play whatever' and I'll search youtube for 'whatever'. "\
+        "@Mention me with 'stop' or whatever and I'll stop playing music.' "\
+        "Instead of @mentioning me, you can just chat me privately. That works too. "\
+        "You can also give me urls."
+      @conversation[user.id] = :just_helped
+    end
+
   else
     event.respond "Excuse me?"
   end
+end
+
+@conversation = {}
+@memory = {}
+bot.mention do |event|
+  @last_channel = event.channel
+  user = bot.user(event.author.id)
+
+  # puts "Conversation with #{user.name} is at #{@conversation[user.id].inspect}"
+  handle_event.call(event, user)
+end
+
+bot.message(private: true) do |event|
+  user = bot.user(event.author.id)
+  handle_event.call(event, user)
 end
 
 bot.ready { puts "READY" }
