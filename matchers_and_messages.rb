@@ -106,6 +106,12 @@ def who?(event)
   (text =~ /resmus\?/)
 end
 
+def no?(event)
+  text = event.message.text
+  (text =~ /no/) ||
+  (text =~ /fuck/)
+end
+
 def im_a_bot(user, message)
   [
     "I'm a bot", "Bot", "A bot", "Who knows dude", "Who are YOU", "I'm a bot lmao",

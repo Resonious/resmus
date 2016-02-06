@@ -223,7 +223,21 @@ handle_event = lambda do |event, user, is_private|
     end
 
   else
-    event.respond "Excuse me?"
+    convo = @conversation[user.id]
+    if convo == :just_helped
+      event.respond "..."
+      @conversation[user.id] = nil
+    elsif convo == :asked_if_i_should_join_voice
+      if no?(event)
+        event.respond "K...."
+        @conversation[user.id] = nil
+      else
+        event.respond "Yes or no?"
+      end
+
+    elsif convo.blank?
+      event.respond "Excuse me?"
+    end
   end
 end
 
