@@ -50,7 +50,9 @@ def download_and_play_url(bot, channel_id, url)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
+        bot.game = %("#{filename}")
         bot.voice.play_file(filename)
+        bot.game = nil
         next
       else
         bot.send_message(channel_id, "One sec, gotta download this")
@@ -65,7 +67,9 @@ def download_and_play_url(bot, channel_id, url)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
+        bot.game = %("#{filename}")
         bot.voice.play_file(filename)
+        bot.game = nil
       else
         bot.send_message(channel_id, "Actually I fucked it up. Sorry.")
       end
@@ -87,7 +91,9 @@ def download_and_play_title(bot, channel_id, title)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
+        bot.game = %("#{filename}")
         bot.voice.play_file(filename)
+        bot.game = nil
         next
       else
         bot.send_message(channel_id, "I'll see what I can find")
@@ -102,7 +108,9 @@ def download_and_play_title(bot, channel_id, title)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
+        bot.game = %("#{filename}")
         bot.voice.play_file(filename)
+        bot.game = nil
       else
         bot.send_message(channel_id, "Couldn't find anything")
       end
@@ -184,6 +192,7 @@ handle_event = lambda do |event, user, is_private|
   when stop?
     if bot.voice
       bot.voice.stop_playing
+      bot.game = nil
       if event.message.text =~ /stfu|shut/
         event.respond "rude"
       else
