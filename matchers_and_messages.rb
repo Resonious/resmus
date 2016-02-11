@@ -135,3 +135,11 @@ def downloading_something
   ]
     .sample
 end
+
+def download?
+  proc do |event|
+    text = event.message.text
+    (text =~ /download/) ||
+    (text =~ /(give|want|send).+(this|file)/)
+  end
+end

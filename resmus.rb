@@ -28,7 +28,19 @@ def recall(user, key)
   @memory[user.id].try(:[], key)
 end
 
+def set_current_filename(bot, filename)
+  if filename.blank?
+    bot.game = nil
+    @current_filename = nil
+  else
+    bot.game = %("#{File.basename(filename)}")
+    @current_filename = filename
+  end
+end
+
 @downloading = false
+@sending = false
+@current_filename = nil
 def download_and_play_url(bot, channel_id, url)
   proc do
     begin
@@ -50,9 +62,9 @@ def download_and_play_url(bot, channel_id, url)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
-        bot.game = %("#{filename}")
+        set_current_filename bot, filename
         bot.voice.play_file(filename)
-        bot.game = nil
+        set_current_filename bot, nil
         next
       else
         bot.send_message(channel_id, "One sec, gotta download this")
@@ -67,9 +79,9 @@ def download_and_play_url(bot, channel_id, url)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
-        bot.game = %("#{filename}")
+        set_current_filename bot, filename
         bot.voice.play_file(filename)
-        bot.game = nil
+        set_current_filename bot, nil
       else
         bot.send_message(channel_id, "Actually I fucked it up. Sorry.")
       end
@@ -91,9 +103,9 @@ def download_and_play_title(bot, channel_id, title)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
-        bot.game = %("#{filename}")
+        set_current_filename bot, filename
         bot.voice.play_file(filename)
-        bot.game = nil
+        set_current_filename bot, nil
         next
       else
         bot.send_message(channel_id, "I'll see what I can find")
@@ -108,9 +120,9 @@ def download_and_play_title(bot, channel_id, title)
         @downloading = false
         bot.voice.stop_playing rescue nil
         bot.voice.continue rescue nil
-        bot.game = %("#{filename}")
+        set_current_filename bot, filename
         bot.voice.play_file(filename)
-        bot.game = nil
+        set_current_filename bot, nil
       else
         bot.send_message(channel_id, "Couldn't find anything")
       end
@@ -122,10 +134,12 @@ def download_and_play_title(bot, channel_id, title)
 end
 
 handle_event = lambda do |event, user, is_private|
+=begin
   if @downloading
     event.respond downloading_something
     next
   end
+=end
 
   case event
   when come_here?(@conversation[user.id])
@@ -165,6 +179,10 @@ handle_event = lambda do |event, user, is_private|
     end
 
   when play_url?
+    if @downloading
+      event.respond downloading_something
+      next
+    end
     if /(?<url>http\S+)/ =~ event.message.text
       remember(user, :play_url, url)
 
@@ -179,6 +197,10 @@ handle_event = lambda do |event, user, is_private|
     end
 
   when play?
+    if @downloading
+      event.respond downloading_something
+      next
+    end
     /^.*(?<play>play)\s+(?<title>.+)$/ =~ event.message.text
     remember(user, :play_title, title)
 
@@ -190,9 +212,13 @@ handle_event = lambda do |event, user, is_private|
     end
 
   when stop?
+    if @downloading
+      event.respond downloading_something
+      next
+    end
     if bot.voice
       bot.voice.stop_playing
-      bot.game = nil
+      set_current_filename bot, nil
       if event.message.text =~ /stfu|shut/
         event.respond "rude"
       else
@@ -205,6 +231,10 @@ handle_event = lambda do |event, user, is_private|
     end
 
   when pause?
+    if @downloading
+      event.respond downloading_something
+      next
+    end
     if bot.voice
       bot.voice.pause
       event.respond "ok"
@@ -215,6 +245,10 @@ handle_event = lambda do |event, user, is_private|
     end
 
   when continue?
+    if @downloading
+      event.respond downloading_something
+      next
+    end
     if bot.voice
       bot.voice.continue
       event.respond "resuming"
@@ -229,6 +263,35 @@ handle_event = lambda do |event, user, is_private|
         "Instead of @mentioning me, you can just chat me privately. That works too. "\
         "You can also give me urls."
       @conversation[user.id] = :just_helped
+    end
+
+  when download?
+    if @downloading
+      event.respond "I'M currently downloading something hang on."
+      next
+    end
+    if @sending
+      event.respond "Omg I am already sending #{@sending} hang on."
+    end
+    if @current_filename.blank?
+      event.respond "I'm not playing anything and therefore don't know what to send"
+      next
+    end
+
+    filename = @current_filename
+    if File.exists?(filename)
+      event.respond "K"
+      Thread.new do
+        begin
+          File.open(filename, "rb") do |f|
+            bot.send_file(event.channel.id, f)
+          end
+        rescue StandardError => e
+          event.respond "Uh, got a #{e.class.name}. #{e.message}."
+        end
+      end
+    else
+      event.respond "I'm dumb and don't know where I saved this file. Sorry."
     end
 
   else
@@ -275,4 +338,14 @@ end
 
 bot.ready { puts "READY" }
 
-bot.run
+bot.run :async
+
+while line_in = gets
+  if @last_channel
+    bot.send_message @last_channel.id, line_in
+  else
+    puts "No channel"
+  end
+end
+
+bot.sync
