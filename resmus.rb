@@ -33,7 +33,7 @@ def set_current_filename(bot, filename)
     bot.game = nil
     @current_filename = nil
   else
-    bot.game = %("#{File.basename(filename)}")
+    bot.game = File.basename(filename, ".ogg")
     @current_filename = filename
   end
 end
@@ -340,7 +340,8 @@ bot.ready { puts "READY" }
 
 bot.run :async
 
-while line_in = gets
+loop do
+  line_in = gets
   if @last_channel
     bot.send_message @last_channel.id, line_in
   else
